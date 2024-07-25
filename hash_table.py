@@ -11,22 +11,24 @@ class HashTableWithChaining:
         bucket_list = self.table[bucket]
 
         # Check if key already exists in the bucket
-        for k, v in bucket_list:
-            # If key exists, update the value
-            if k == key:
-                v = value
-                return
+        # If key exists, update the value
         # If key does not exist, add it to the bucket
+        for item in bucket_list:
+            if item[0] == key:
+                item[1] = value
+                self.size += 1
+                return
         bucket_list.append([key, value])
 
     # Search for an item in the table
+    # O(n) time complexity
     def search(self, key):
         bucket = self._hash(key)
         bucket_list = self.table[bucket]
 
-        for k, v in bucket_list:
-            if k == key:
-                return v
+        for item in bucket_list:
+            if item[0] == key:
+                return item[1]
         return None
 
     def delete(self, key):
@@ -37,5 +39,21 @@ class HashTableWithChaining:
             bucket_list.remove(key)
             self.size -= 1
 
+    def inspect(self):
+        packages = []
+        # iterate through each bucket in the table and print the key-value pairs
+        for bucket in self.table:
+            for key, value in bucket:
+                packages.append(value)
+        for package in packages:
+            print(package)
+
     def __str__(self):
         return str(self.table)
+
+    # Make the hash table iterable
+    def __iter__(self):
+        for bucket in self.table:
+            for item in bucket:
+                yield item
+

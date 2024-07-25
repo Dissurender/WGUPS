@@ -1,89 +1,94 @@
 import datetime
-import time
 
 import csv
 from address import Address
 from hash_table import HashTableWithChaining as HashTable
 from package import Package
 
+#
+# Global variables
+#
+ADDRESSES = []
+PACKAGES = HashTable(10)
+DISTANCES = {}
+
+
+def package_lookup(package_id: int) -> Package:
+    return PACKAGES.search(package_id)
+
+
+def address_lookup(address_id: int) -> Address:
+    return ADDRESSES[address_id]
+
+
+def get_address_by_street(street: str) -> Address or None:
+    for addr in ADDRESSES:
+        if addr.street == street:
+            return addr
+    return None
+
+
+def get_distance(i: int, j: int) -> float:
+    return DISTANCES[i, j]
+
+
+# Convert time string to minutes
+# "10:30 AM" -> 10:30 , "10:30 PM"-> 22:30
+def convert_time(time_str) -> datetime.timedelta:
+    if time_str == 'EOD':
+        return datetime.timedelta(hours=23, minutes=59)
+    time = time_str.split(':')
+    hour = int(time[0])
+    minute = int(time[1].split(' ')[0])
+    if time[1].split(' ')[1] == 'PM':
+        hour += 12
+    return datetime.timedelta(hours=hour, minutes=minute)
+
 
 #
 # Load data from CSV files
 #
-def load_addresses() -> list:
-    print('Loading addresses...')
-    with open('csv/addresses.csv', 'r') as address_file:
-        address_data = csv.reader(address_file)
-        address_data = list(address_data)
+print('Loading addresses...')
+with open('csv/addresses.csv', 'r') as address_file:
+    address_data = csv.reader(address_file)
+    address_data = list(address_data)
 
-    address_list = [] * len(address_data)
-    for address in address_data:
-        addr = Address(address[0], address[1], address[2])
-        address_list.append(addr)
+# Create a list of Address objects
+for address in address_data:
+    addr = Address(address[0], address[1], address[2])
+    ADDRESSES.insert(addr.ID, addr)
 
-    return address_list
+print('Loading packages...')
+with open('csv/packages.csv', 'r') as package_file:
+    package_data = csv.reader(package_file)
+    package_data = list(package_data)
 
+    for package in package_data:
+        # 1,195 W Oakland Ave,Salt Lake City,UT,84115,10:30 AM,21,
+        parcel = Package(package[0], package[6], package[7])
+        addr = get_address_by_street(package[1])
+        addr.street = package[1]
+        addr.city = package[2]
+        addr.state = package[3]
+        addr.zip = package[4]
 
-def load_packages() -> HashTable:
-    print('Loading packages...')
-    packages = HashTable(10)
-    with open('csv/packages.csv', 'r') as package_file:
-        package_data = csv.reader(package_file)
-        package_data = list(package_data)
+        ADDRESSES.insert(addr.ID, addr)
+        parcel.address = addr
+        parcel.deadline = convert_time(package[5])
 
-        for package in package_data:
-            parcel = Package(package[0], package[1], package[2], package[3], package[4])
-            packages.insert(parcel.ID, parcel)
+        PACKAGES.insert(parcel.ID, parcel)
 
-    return packages
+print('Populating distance dictionary...')
+with open('csv/distances.csv', 'r') as distance_file:
+    distance_data = csv.reader(distance_file)
+    distance_data = list(distance_data)
 
-
-def load_distances() -> dict:
-    print('Populating distance dictionary...')
-    with open('csv/distances.csv', 'r') as distance_file:
-        distance_data = csv.reader(distance_file)
-        distance_data = list(distance_data)
-
-    # Create a dictionary to store the distances between addresses
-    distance_dict = {}
-    for i in range(len(distance_data)):
-        for j in range(len(distance_data[i])):
-            if distance_data[i][j] == '':
-                distance_dict[i, j] = 0.0
-            else:
-                distance_dict[i, j] = float(distance_data[i][j])
-
-    return distance_dict
-
-
-#
-# Helper functions
-#
-
-def package_lookup(package_id) -> Package:
-    pass
-
-
-def address_lookup(address_id) -> Address:
-    pass
-
-
-# Convert time string to minutes
-def convert_time(time_str) -> datetime.timedelta:
-    time = time_str.split(':')
-    hours = int(time[0])
-    minutes = int(time[1][2:])
-    if time[1][:2] == 'PM':
-        hours += 12
-    return datetime.timedelta(hours=hours, minutes=minutes)
-
-
-def parse_packages(package_list):
-    pass
-
-
-def parse_addresses(address_list):
-    pass
+for i in range(len(distance_data)):
+    for j in range(len(distance_data[i])):
+        if distance_data[i][j] == '':
+            DISTANCES[i, j] = 0.0
+        else:
+            DISTANCES[i, j] = float(distance_data[i][j])
 
 
 #
@@ -95,7 +100,6 @@ def parse_addresses(address_list):
 # This algorithm is secondary to the 2-opt optimization algorithm and is only used on the 'priority' packages
 def nearest_neighbor(start, address_list) -> list:
     print('Calculating nearest neighbor...')
-    distances = main.distance_dict
     max_i = len(address_list)
     route = [start]
     visited = [False] * len(address_list)
@@ -106,9 +110,9 @@ def nearest_neighbor(start, address_list) -> list:
         nearest_distance = float('inf')
 
         for i in range(len(address_list)):
-            if not visited[i] and distances[current, i] < nearest_distance:
+            if not visited[i] and DISTANCES[current, i] < nearest_distance:
                 nearest = i
-                nearest_distance = distances[current, i]
+                nearest_distance = DISTANCES[current, i]
 
         route.append(nearest)
         visited[nearest] = True
@@ -141,12 +145,11 @@ def two_opt(route) -> tuple[list, float]:
     return best_route, best_distance
 
 
-def sum_route_distance(route):
-    distances = main.distance_dict
+def sum_route_distance(route) -> float:
     total_distance = 0.0
     for i in range(len(route) - 1):
-        total_distance += distances[route[i], route[i + 1]]
-    total_distance += distances[route[-1], route[0]]
+        total_distance += DISTANCES[route[i], route[i + 1]]
+    total_distance += DISTANCES[route[-1], route[0]]
     return total_distance
 
 
@@ -161,9 +164,9 @@ def two_opt_swap(route, i, k):
 
 
 def intro():
-    time.sleep(1)
+    # time.sleep(1)
     print('<- Press Ctrl+C to quit at any time ->')
-    time.sleep(1)
+    #     time.sleep(1)
 
     print("""
             _____________________________________________
@@ -180,17 +183,14 @@ def intro():
 
 def initialize():
     print('Initializing...')
-    time.sleep(1)
 
 
 def run_simulation():
     print('Running simulation...')
-    time.sleep(1)
 
 
 def user_interface():
     print('User interface...')
-    time.sleep(1)
     menu = """
             Welcome to the WGUPS package tracking system!
             Please select an option:
@@ -208,7 +208,8 @@ def user_interface():
 
         match user_input:
             case '1':
-                print('Lookup package')
+                print('Lookup packages')
+                print(PACKAGES.inspect())
             case '2':
                 print('Lookup address')
             case '3':
@@ -222,24 +223,18 @@ def user_interface():
                 print(menu)
             case _:
                 print('\nInvalid input. Please select and option by its #.')
-                time.sleep(1)
 
 
-# Main class to hold state and control flow
-class Main:
-    def __init__(self):
-        self.package_list = load_packages()
-        self.address_list = load_addresses()
-        self.distance_dict = load_distances()
+#                 time.sleep(1)
 
-    def run(self):
-        intro()
-        initialize()
-        run_simulation()
-        user_interface()
-        exit()
+
+def main():
+    intro()
+    initialize()
+    run_simulation()
+    user_interface()
+    exit()
 
 
 if __name__ == '__main__':
-    main = Main()
-    main.run()
+    main()
