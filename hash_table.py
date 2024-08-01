@@ -6,6 +6,7 @@ class HashTableWithChaining:
     def _hash(self, key):
         return int(key) % len(self.table)
 
+    # Part A: insert data
     def insert(self, key, value):
         bucket = self._hash(key)
         bucket_list = self.table[bucket]
@@ -22,6 +23,7 @@ class HashTableWithChaining:
 
     # Search for an item in the table
     # O(n) time complexity
+    # Part B: search
     def search(self, key):
         bucket = self._hash(key)
         bucket_list = self.table[bucket]

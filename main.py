@@ -1,12 +1,14 @@
 import datetime
+import random
 
 import csv
 from address import Address
 from hash_table import HashTableWithChaining as HashTable
 from package import Package
+from truck import Truck
 
 #
-# Global variables
+# Global state
 #
 ADDRESSES = []
 PACKAGES = HashTable(10)
@@ -76,6 +78,10 @@ with open('csv/packages.csv', 'r') as package_file:
         parcel.address = addr
         parcel.deadline = convert_time(package[5])
 
+        if parcel.deadline <= datetime.timedelta(hours=10, minutes=30):
+            parcel.is_priority = True
+
+        # Insert package into hash table with package ID as key and package data as value
         PACKAGES.insert(parcel.ID, parcel)
 
 print('Populating distance dictionary...')
@@ -96,7 +102,7 @@ for i in range(len(distance_data)):
 #
 
 # Nearest neighbor algorithm
-# O(n^2) time complexity
+# O(N^2) time complexity
 # This algorithm is secondary to the 2-opt optimization algorithm and is only used on the 'priority' packages
 def nearest_neighbor(start, address_list) -> list:
     print('Calculating nearest neighbor...')
@@ -118,44 +124,6 @@ def nearest_neighbor(start, address_list) -> list:
         visited[nearest] = True
 
     return route
-
-
-# 2-opt optimization algorithm
-# This algorithm is used to optimize the 'standard' packages route for shortest distance
-# O(N^3) time complexity
-def two_opt(route) -> tuple[list, float]:
-    print('Optimizing route with 2-opt...')
-    best_route = route
-    improved = True
-    best_distance = 0.0
-
-    while improved:
-        improved = False
-        best_distance = sum_route_distance(best_route)
-
-        for i in range(1, len(best_route) - 1):
-            for j in range(i + 1, len(best_route) - 1):
-                new_route = two_opt_swap(best_route, i, j)
-                new_distance = sum_route_distance(new_route)
-
-                if new_distance < best_distance:
-                    best_route = new_route
-                    best_distance = new_distance
-                    improved = True
-    return best_route, best_distance
-
-
-def sum_route_distance(route) -> float:
-    total_distance = 0.0
-    for i in range(len(route) - 1):
-        total_distance += DISTANCES[route[i], route[i + 1]]
-    total_distance += DISTANCES[route[-1], route[0]]
-    return total_distance
-
-
-def two_opt_swap(route, i, k):
-    new_route = route[:i] + route[i:k + 1][::-1] + route[k + 1:]
-    return new_route
 
 
 #
@@ -183,8 +151,106 @@ def intro():
 
 def initialize():
     print('Initializing...')
+    # create trucks
+    truck1 = Truck(1)
+    truck2 = Truck(2)
+    truck3 = Truck(3)
+
+    # load priority packages
+    priority_one = []
+    priority_two = []
+    priority_three = []
+
+    standard = []
+
+    for i in range(1, 41):
+        package = package_lookup(i)
+
+        # handle packages with restrictions
+        # must be on truck 2
+        if i in [3, 18, 36, 38]:
+            priority_two.append(package)
+
+        # delayed packages
+        if i in [6, 25, 28, 32]:
+            priority_one.append(package)
+
+        # packages that must be delivered together
+        if i in [13, 14, 15, 16, 19, 20]:
+            priority_two.append(package)
+
+        # packages that must be on truck 3
+        if i == 9:
+            priority_three.append(package)
+
+        if package.is_priority:
+            if package.deadline < convert_time('10:30'):
+                priority_two.append(package)
+            else:
+                priority_one.append(package)
+        else:
+            standard.append(i)
+
+    # optimize routes
+    final_packages = [[], [], []]
+    final_route = [[], [], []]
+
+    for i in range(10):
+        random.shuffle(standard)
+        package_list = [[], [], []]
+
+        # randomly assign packages from standard list to packages 1, 2, and 3
+        for j in range(len(standard)):
+            if j % 3 == 0:
+                package_list[0].append(standard[j])
+            elif j % 3 == 1:
+                package_list[1].append(standard[j])
+            else:
+                package_list[2].append(standard[j])
+
+        # get address lists
+        address_list_1 = [package_lookup(i).address.ID for i in package_list[0]]
+        address_list_2 = [package_lookup(i).address.ID for i in package_list[1]]
+        address_list_3 = [package_lookup(i).address.ID for i in package_list[2]]
+
+        # nearest neighbor algorithm
+        standard_route_1 = nearest_neighbor(priority_one[-1].address.ID, address_list_1)
+        standard_route_2 = nearest_neighbor(priority_two[-1].address.ID, address_list_2)
+        standard_route_3 = nearest_neighbor(priority_three[-1].address.ID, address_list_3)
+
+        # collate delivery routes
+        delivery_route_1 = [[0, *priority_one, *standard_route_1, 0], 0.0]
+        delivery_route_2 = [[0, *priority_two, *standard_route_2, 0], 0.0]
+        delivery_route_3 = [[0, *priority_three, *standard_route_3, 0], 0.0]
+        delivery_routes = [delivery_route_1, delivery_route_2, delivery_route_3]
+
+        # iterate through delivery routes and calculate distances
+        for i in range(3):
+            for j in range(len(delivery_routes[i][0]) - 1):
+                delivery_routes[i][1] += DISTANCES[delivery_routes[i][0][j], delivery_routes[i][0][j + 1]]
+
+            if delivery_routes[i][1] < final_route[i][1] or final_route[i][1] == 0.0:
+                final_route[i] = delivery_routes[i]
+                final_packages[i] = package_list[i]
+
+        # clear package lists
+        package_list = [[], [], []]
+
+    # assign package delivery times
+    truck1.route = final_route[0][0]
+    truck1.total_distance = final_route[0][1]
+    truck1.load(final_packages[0])
+
+    truck2.route = final_route[1][0]
+    truck2.total_distance = final_route[1][1]
+    truck2.load(final_packages[1])
+
+    truck3.route = final_route[2][0]
+    truck3.total_distance = final_route[2][1]
+    truck3.load(final_packages[2])
 
 
+# not needed?
 def run_simulation():
     print('Running simulation...')
 
@@ -229,11 +295,11 @@ def user_interface():
 
 
 def main():
-    intro()
-    initialize()
-    run_simulation()
-    user_interface()
-    exit()
+    intro()  # Display intro message
+    initialize()  # Initialize data structures
+    run_simulation()  # Run simulation
+    user_interface()  # User Input Loop
+    exit()  # Graceful exit
 
 
 if __name__ == '__main__':
