@@ -1,6 +1,5 @@
 class HashTableWithChaining:
     def __init__(self, size, capacity=10):
-        self.size = size
         self.table = [[] for _ in range(capacity)]
 
     def _hash(self, key):
@@ -17,7 +16,6 @@ class HashTableWithChaining:
         for item in bucket_list:
             if item[0] == key:
                 item[1] = value
-                self.size += 1
                 return
         bucket_list.append([key, value])
 
@@ -26,11 +24,15 @@ class HashTableWithChaining:
     # Part B: search
     def search(self, key):
         bucket = self._hash(key)
-        bucket_list = self.table[bucket]
+        bucket_row = self.table[bucket]
 
-        for item in bucket_list:
-            if item[0] == key:
-                return item[1]
+        # iterate the data in the bucket, return wanted data item
+        # checks in O(N) where N is bucket_row length
+        for data in bucket_row:
+            if data[0] == key:
+                return data[1]
+
+        # if key not in table return nothing
         return None
 
     def delete(self, key):
@@ -39,7 +41,6 @@ class HashTableWithChaining:
 
         if key in bucket_list:
             bucket_list.remove(key)
-            self.size -= 1
 
     def inspect(self):
         packages = []
@@ -58,4 +59,3 @@ class HashTableWithChaining:
         for bucket in self.table:
             for item in bucket:
                 yield item
-

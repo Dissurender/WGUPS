@@ -20,9 +20,10 @@ class Package:
         string_builder = ""
 
         string_builder += 'Package ID: ' + str(self.ID) + '\n'
-        string_builder += 'Address: ' + self.get_address() + '\n'
         string_builder += 'Weight: ' + str(self.weight) + ' lbs\n'
         string_builder += 'Deadline: ' + str(self.deadline) + '\n'
+        string_builder += 'Status: ' + str(self.get_status_at_time(datetime.datetime.now())) + '\n\n'
+        string_builder += 'Address: ' + self.get_address() + '\n'
 
         return string_builder
 
