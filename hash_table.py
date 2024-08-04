@@ -14,10 +14,10 @@ class HashTableWithChaining:
         # If key exists, update the value
         # If key does not exist, add it to the bucket
         for item in bucket_list:
-            if item[0] == key:
+            if int(item[0]) == key:
                 item[1] = value
                 return
-        bucket_list.append([key, value])
+        bucket_list.append([int(key), value])
 
     # Search for an item in the table
     # O(n) time complexity
@@ -33,6 +33,7 @@ class HashTableWithChaining:
                 return data[1]
 
         # if key not in table return nothing
+        print('Key not found')
         return None
 
     def delete(self, key):
@@ -43,13 +44,14 @@ class HashTableWithChaining:
             bucket_list.remove(key)
 
     def inspect(self):
-        packages = []
-        # iterate through each bucket in the table and print the key-value pairs
+        packages = [-1] * 40
+        # iterate through each bucket in the table and place the package in the correct index for printing
+        # O(N) where N is a known constant 40
         for bucket in self.table:
-            for key, value in bucket:
-                packages.append(value)
+            for item in bucket:
+                packages[int(item[0]) - 1] = item[1]
         for package in packages:
-            print(package)
+            print(package.__str__())
 
     def __str__(self):
         return str(self.table)

@@ -16,8 +16,11 @@ class Truck:
         string_builder = ""
 
         string_builder += 'Truck: ' + str(self.ID) + '\n'
-        string_builder += 'Current Location: ' + self.location + '\n'
+        string_builder += 'Current Location: ' + str(self.location) + '\n'
         string_builder += 'Time Left: ' + str(self.leave_time) + '\n'
         string_builder += 'Total Distance: ' + str(self.total_distance) + '\n'
+        string_builder += 'Packages: \n'
+        string_builder += 'Priority Packages: ' + str(len(self.priority_packages)) + '\n'
+        string_builder += 'Non-Priority Packages: ' + str(len(self.packages)) + '\n'
 
         return string_builder

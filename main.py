@@ -91,8 +91,8 @@ def get_distance(distances, i: int, j: int) -> float:
         return distances[j, i]
 
 
-def truck_assigner(package):
-    id = package.ID
+def truck_assigner(package) -> int:
+    id = int(package.ID)
     # handle packages with restrictions
     # must be on truck 2
     if id in [3, 18, 36, 38]:
@@ -171,46 +171,36 @@ def run_simulation():
     priority = []
     standard = []
 
-    # optimize routes
-    final_packages = [[], [], []]
-    final_route = [[], [], []]
+    # split packages into priority and standard lists
+    for package in packages:
+        if package.is_priority:
+            priority.append(package)
+        else:
+            standard.append(package)
 
-    for i in range(10):
-        random.shuffle(standard)
-        package_list = [[], [], []]
+    # assign priority packages to trucks 1 and 2
+    for package in priority:
+        truck = truck_assigner(package)
+        if truck is None:
+            truck = random.randint(1, 2)
+        if truck == 1:
+            truck1.priority_packages.append(package)
+        elif truck == 2:
+            truck2.priority_packages.append(package)
 
-        # randomly assign packages from standard list to packages 1, 2, and 3
-        for j in range(len(standard)):
-            if j % 3 == 0:
-                package_list[0].append(standard[j])
-            elif j % 3 == 1:
-                package_list[1].append(standard[j])
-            else:
-                package_list[2].append(standard[j])
+    # assign standard packages to trucks with limited capacity of 16
+    for package in standard:
+        truck = truck_assigner(package)
+        if truck == 1 or (len(truck1.packages) + len(truck1.priority_packages)) < 14:
+            truck1.packages.append(package)
+        elif truck == 2 or (len(truck2.packages) + len(truck2.priority_packages)) < 14:
+            truck2.packages.append(package)
+        elif truck == 3 or (len(truck3.packages) + len(truck3.priority_packages)) < 14:
+            truck3.packages.append(package)
 
-        # collate delivery routes
-        delivery_route_1 = [[0, *truck1.priority_packages, *package_list[0], 0], 0.0]
-        delivery_route_2 = [[0, *truck2.priority_packages, *package_list[1], 0], 0.0]
-        delivery_route_3 = [[0, *truck3.priority_packages, *package_list[2], 0], 0.0]
-        delivery_routes = [delivery_route_1, delivery_route_2, delivery_route_3]
-
-        # optimize routes
-
-        # clear package lists
-        package_list = [[], [], []]
-
-    # assign package delivery times
-    truck1.route = final_route[0]
-    truck1.total_distance = final_route[0]
-    truck1.packages = final_packages[0]
-
-    truck2.route = final_route[1]
-    truck2.total_distance = final_route[1]
-    truck2.packages = final_packages[1]
-
-    truck3.route = final_route[2]
-    truck3.total_distance = final_route[2]
-    truck3.packages = final_packages[2]
+    print(str(truck1))
+    print(str(truck2))
+    print(str(truck3))
 
 
 def user_interface():
@@ -218,13 +208,12 @@ def user_interface():
     menu = """
             Welcome to the WGUPS package tracking system!
             Please select an option:
-            1. Lookup package
+            1. Lookup package by ID
             2. Lookup address
             3. Print all packages
             4. Print all addresses
             5. Exit
             
-            6. Show menu
             """
 
     while True:
@@ -236,7 +225,7 @@ def user_interface():
                 print('Enter package ID: ')
                 package_id = input()
                 package = PACKAGES.search(package_id)
-                print('Package found')
+                print('\nPackage found\n')
                 print(package)
             case '2':
                 print('Lookup address')
@@ -248,8 +237,6 @@ def user_interface():
             case '5':
                 print('Exiting...')
                 break
-            case '6':
-                print(menu)
             case _:
                 print('\nInvalid input. Please select and option by its #.')
 
