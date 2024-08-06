@@ -1,5 +1,5 @@
 class HashTableWithChaining:
-    def __init__(self, size, capacity=10):
+    def __init__(self, capacity=10):
         self.table = [[] for _ in range(capacity)]
 
     def _hash(self, key):
@@ -40,8 +40,10 @@ class HashTableWithChaining:
         bucket = self._hash(key)
         bucket_list = self.table[bucket]
 
-        if key in bucket_list:
-            bucket_list.remove(key)
+        for item in bucket_list:
+            if int(item[0]) == key:
+                bucket_list.remove(item)
+                return
 
     def inspect(self):
         packages = [-1] * 40

@@ -4,12 +4,12 @@ from package import Package
 
 
 class Truck:
-    def __init__(self, ID, address) -> None:
+    def __init__(self, ID, location) -> None:
         self.ID = ID  # Truck ID
         self.packages: List[Package] = []
         self.priority_packages: List[Package] = []
         self.route = []
-        self.location = address
+        self.location = location
         self.leave_time = None
         self.total_distance = 0.0
 
@@ -25,3 +25,6 @@ class Truck:
         string_builder += 'Non-Priority Packages: ' + str(len(self.packages)) + '\n'
 
         return string_builder
+
+    def package_count(self):
+        return len(self.packages) + len(self.priority_packages)

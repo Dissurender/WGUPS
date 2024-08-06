@@ -13,8 +13,8 @@ class Package:
         self.is_priority = is_priority
 
         self.address: Address or None = None
-        self.leave_time = None
-        self.delivery_time = None
+        self.leave_time = None  # added when truck leaves hub
+        self.delivery_time = None  # added when route is calculated
 
     def __str__(self) -> str:
         string_builder = ""
@@ -37,15 +37,6 @@ class Package:
             return self.deadline
 
     def get_status_at_time(self, time):
-        if self.leave_time is None:
-            return Status.AT_HUB
-        elif time < self.leave_time:
-            return Status.AT_HUB
-        elif time < self.delivery_time:
-            return Status.OUT_FOR_DELIVERY
-        elif time >= self.delivery_time:
-            return Status.DELIVERED
-
         if self.ID == 9:
             delay_time = datetime.datetime(hour=10, minute=20)
             if time < delay_time:
@@ -58,3 +49,12 @@ class Package:
                 return Status.OUT_FOR_DELIVERY
             elif time >= self.delivery_time:
                 return Status.DELIVERED
+
+        if self.leave_time is None:
+            return Status.AT_HUB
+        elif time < self.leave_time:
+            return Status.AT_HUB
+        elif time < self.delivery_time:
+            return Status.OUT_FOR_DELIVERY
+        elif time >= self.delivery_time:
+            return Status.DELIVERED
