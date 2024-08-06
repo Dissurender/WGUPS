@@ -84,11 +84,11 @@ def get_address_by_street(address_list, street: str) -> Address or None:
     return None
 
 
-def get_distance(distances, i: int, j: int) -> float:
-    if distances[i, j]:
-        return distances[i, j]
+def get_distance(i: int, j: int) -> float:
+    if DISTANCES[i, j]:
+        return DISTANCES[i, j]
     else:
-        return distances[j, i]
+        return DISTANCES[j, i]
 
 
 def truck_assigner(package) -> int:
@@ -110,32 +110,28 @@ def truck_assigner(package) -> int:
         return 3
 
 
+# def route_formatter(package):
+
+
 #
 # Greedy algorithms/optimization
 #
 
 # Nearest neighbor algorithm
 # O(N^2) time complexity
-# This algorithm is secondary to the 2-opt optimization algorithm and is only used on the 'priority' packages
-def nearest_neighbor(start, address_list) -> list:
-    print('Calculating nearest neighbor...')
-    max_i = len(address_list)
+def nearest_neighbor(start, packages):
     route = [start]
-    visited = [False] * len(address_list)
-
-    while len(route) < max_i:
-        current = route[-1]
+    current = start
+    while len(packages) > 0:
         nearest = None
-        nearest_distance = float('inf')
-
-        for i in range(len(address_list)):
-            if not visited[i] and get_distance(DISTANCES, current, i) < nearest_distance:
-                nearest = i
-                nearest_distance = get_distance(DISTANCES, current, i)
-
-        route.append(nearest)
-        visited[nearest] = True
-
+        for package in packages:
+            if nearest is None:
+                nearest = package
+            if get_distance(current, package.address.ID) < get_distance(current, nearest.address.ID):
+                nearest = package
+        route.append(nearest.address.ID)
+        current = nearest.address.ID
+        packages.remove(nearest)
     return route
 
 
@@ -162,9 +158,9 @@ def intro():
 def run_simulation():
     print('Running simulation...')
     # create trucks
-    truck1 = Truck(1)
-    truck2 = Truck(2)
-    truck3 = Truck(3)
+    truck1 = Truck(1, ADDRESSES[0])
+    truck2 = Truck(2, ADDRESSES[0])
+    truck3 = Truck(3, ADDRESSES[0])
 
     # load priority packages
     packages = [PACKAGES.search(i) for i in range(1, 41)]
@@ -182,7 +178,7 @@ def run_simulation():
     for package in priority:
         truck = truck_assigner(package)
         if truck is None:
-            truck = random.randint(1, 2)
+            truck = int(package.ID) % 2 + 1
         if truck == 1:
             truck1.priority_packages.append(package)
         elif truck == 2:
@@ -198,9 +194,18 @@ def run_simulation():
         elif truck == 3 or (len(truck3.packages) + len(truck3.priority_packages)) < 14:
             truck3.packages.append(package)
 
-    print(str(truck1))
-    print(str(truck2))
-    print(str(truck3))
+    # Packages are clean at this point
+
+    # Nearest neighbor optimization
+    for truck in [truck1, truck2]:
+        print('Truck ', truck.ID, ' priority packages: ')
+        for package in truck.priority_packages:
+            print(package.address.ID)
+        truck.route = nearest_neighbor(0, truck.priority_packages)
+        print('Truck ', truck.ID, ' priority route: ', truck.route)
+        truck.route.extend(nearest_neighbor(truck.route[-1], truck.packages)[1:])
+        print('Truck ', truck.ID, ' route: ', truck.route)
+        truck.route.append(0)
 
 
 def user_interface():
