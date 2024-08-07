@@ -5,6 +5,7 @@ from package import Package
 
 class Truck:
     def __init__(self, ID, location) -> None:
+        self.delivered = None
         self.ID = ID  # Truck ID
         self.packages: List[Package] = []
         self.priority_packages: List[Package] = []
@@ -28,3 +29,9 @@ class Truck:
 
     def package_count(self):
         return len(self.packages) + len(self.priority_packages)
+
+    def set_package_leave_times(self):
+        for package in self.packages:
+            package.leave_time = self.leave_time
+        for package in self.priority_packages:
+            package.leave_time = self.leave_time

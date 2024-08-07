@@ -74,7 +74,7 @@ for i in range(len(distance_data)):
         if distance_data[i][j]:
             DISTANCES[i, j] = float(distance_data[i][j])
         else:
-            DISTANCES[i, j] = 0.0
+            DISTANCES[j, i] = 0.0
 
 
 def get_address_by_street(address_list, street: str) -> Address or None:
@@ -93,11 +93,15 @@ def get_packages_by_address(package_list, address: int) -> list:
 
 
 def get_distance(i: int, j: int) -> float:
+    i = int(i)
+    j = int(j)
     if i == j:  # same address, no distance
         return 0.0
-    if i > j:  # swap i and j to properly call the distance from the dictionary if i is greater than j
+
+    if (i, j) in DISTANCES:
+        return DISTANCES[i, j]
+    else:
         return DISTANCES[j, i]
-    return DISTANCES[i, j]
 
 
 def truck_assigner(package) -> int | None:
@@ -184,29 +188,30 @@ def sort_packages(packages, trucks):
             trucks[2].packages.append(package)
 
 
-# deliver packages
+# deliver_packages iterates through the truck's route and filters out packages that are to be delivered at each address
+# also calculates the total distance traveled by the truck and the time each package is delivered as the truck travels
 # O(N^2) time complexity
-# TODO: refactor to work
-def deliver_packages(truck):
-    current = truck.route[0]
-    total_distance = 0.0
+def deliver_packages(truck) -> list[Package]:
+    current = truck.route[0]  # start at the first address in the route
+    delivered = []
     for i in range(1, len(truck.route)):
         next_local = truck.route[i]
-        print(f'Truck {truck.ID} traveling from {current} to {next_local}')
+
         distance = get_distance(current, next_local)
-        total_distance = total_distance + distance
-        print(f'Total distance: {total_distance}')
+        truck.total_distance += distance
+
         curr_packages = get_packages_by_address(truck.packages, next_local)
         for package in curr_packages:
-            print(f'Delivering package {package.ID} to {package.address.street}')
             # convert distance to time in minutes and add to leave time
-            delivery_time = truck.leave_time + datetime.timedelta(minutes=total_distance / 18 * 60)
-            print(f'Time {delivery_time}')
-            package.delivery_time  = delivery_time
-            # print(f'Package {package.ID} delivered at {package.delivery_time}')
+            delivery_time = truck.leave_time + datetime.timedelta(minutes=truck.total_distance / 18 * 60)
+
+            package.delivery_time = delivery_time
+            delivered.append(package)
+        # filter out delivered packages
         truck.packages = [package for package in truck.packages if package not in curr_packages]
         current = next_local
-    truck.total_distance = total_distance
+
+    return delivered
 
 
 #
@@ -232,8 +237,7 @@ def print_out_packages(trucks):
         std.clear()
 
 
-def run_simulation():
-    print('Running simulation...')
+def run_simulation() -> list[Truck]:
     # create trucks
     truck1 = Truck(1, ADDRESSES[0])
     truck2 = Truck(2, ADDRESSES[0])
@@ -247,10 +251,7 @@ def run_simulation():
     # sort packages to priority and standard lists
     sort_packages(packages, trucks)
 
-    # print truck packages
-    # print_out_packages(trucks)
-
-    print('Optimizing routes...')
+    # TODO: Verify that addresses are not being duplicated in the route after optimization
     # Nearest neighbor optimization
     for truck in trucks:
         # starting at hub, find nearest neighbor path for priority packages
@@ -264,32 +265,32 @@ def run_simulation():
 
         # starting at last element of temp list, find nearest neighbor path for standard packages
         temp_list = nearest_neighbor(temp_list[0], truck.packages)
+        temp_list = temp_list[1:]
 
-        truck.route.extend(temp_list[1:])
+        truck.route.extend(temp_list)
         truck.route.append(0)
 
         truck.packages.extend(truck.priority_packages)
         truck.priority_packages.clear()
 
-        print(f'Truck {truck.ID} route created: {truck.route}')
-
     # iterate through the route and calculate the total distance
     trucks[0].leave_time = datetime.timedelta(hours=8, minutes=0)
-    deliver_packages(trucks[0])
+    trucks[0].set_package_leave_times()
+    trucks[0].delivered = deliver_packages(trucks[0])
 
     trucks[1].leave_time = datetime.timedelta(hours=9, minutes=5)
-    deliver_packages(trucks[1])
+    trucks[1].set_package_leave_times()
+    trucks[1].delivered = deliver_packages(trucks[1])
 
     truck3_leave_time = max(
         datetime.timedelta(hours=10, minutes=20),
         truck1.leave_time + datetime.timedelta(minutes=truck1.total_distance / 18))
-    print(f'Truck 3 leave time: {truck3_leave_time}')
     trucks[2].leave_time = truck3_leave_time
-    deliver_packages(trucks[2])
+    trucks[2].set_package_leave_times()
+    trucks[2].delivered = deliver_packages(trucks[2])
 
-    print_out_packages(trucks)
-    print('Simulation complete.')
-    print(f'Total distance traveled: {truck1.total_distance + truck2.total_distance + truck3.total_distance} miles')
+    # print_out_packages(trucks)
+    return trucks
 
 
 def intro():
@@ -308,13 +309,12 @@ def intro():
     print('Starting Service...')
 
 
-def user_interface():
-    print('User interface...')
+def user_interface(trucks: list[Truck]):
     menu = """
             Please select an option:
-            1. Lookup package at time
-            2. Lookup address
-            3. Print all packages
+            1. Lookup package at exact time
+            2. Print all packages
+            3. Get status of all packages at a specific time
             4. Print all addresses
             5. Exit
             
@@ -328,17 +328,27 @@ def user_interface():
                 print('Lookup package at time')
                 package_id = input('Enter package ID: ')
                 package = PACKAGES.search(int(package_id))
-                search_time = input('Enter time to search for package: ')
+                search_time = input('Enter time to search for package: (HH:MM) ')
                 search_time = convert_time(search_time)
                 package.get_status_at_time(search_time)
                 print(f'Package {package_id} status at {search_time}: {package.get_status_at_time(search_time)}')
+                input('Press Enter to continue...')
             case '2':
-                print('Lookup address')
-            case '3':
-                print('Lookup packages')
                 print(PACKAGES.inspect())
+            case '3':
+                search_time = input('Enter time to view status of all packages: (HH:MM) ')
+                search_time = convert_time(search_time)
+                for truck in trucks:
+                    print(f'Truck {truck.ID} packages:' + str([package.ID for package in truck.delivered]))
+                    for package in truck.delivered:
+                        print(f'Package {package.ID} status at {search_time}: {package.get_status_at_time(search_time)}')
+                    print()
+                input('Press Enter to continue...')
+
             case '4':
                 print('Print all addresses')
+                for address in ADDRESSES:
+                    print(address)
             case '5':
                 print('Exiting...')
                 break
@@ -348,8 +358,19 @@ def user_interface():
 
 def main():
     intro()  # Display intro message
-    run_simulation()  # Run simulation
-    user_interface()  # User Input Loop
+    # Run simulation until total distance is calculated < 140 miles
+    while True:
+        print('Running simulation...')
+        trucks = run_simulation()
+        distance = trucks[0].total_distance + trucks[1].total_distance + trucks[2].total_distance
+        if distance < 140:
+            print('Simulation complete.')
+            print(f'Total distance traveled: {distance} miles')
+            break
+        print('Total distance exceeded 140 miles.')
+        print('Rerunning simulation...')
+
+    user_interface(trucks)  # User Input Loop
     exit()  # Graceful exit
 
 
