@@ -45,16 +45,6 @@ class HashTableWithChaining:
                 bucket_list.remove(item)
                 return
 
-    def inspect(self):
-        packages = [-1] * 40
-        # iterate through each bucket in the table and place the package in the correct index for printing
-        # O(N) where N is a known constant 40
-        for bucket in self.table:
-            for item in bucket:
-                packages[int(item[0]) - 1] = item[1]
-        for package in packages:
-            print(package.__str__())
-
     def __str__(self):
         return str(self.table)
 

@@ -1,3 +1,8 @@
+# Rhyn Ogg
+# Student ID: 011258802
+# C950
+
+
 import datetime
 import random
 
@@ -5,6 +10,7 @@ import csv
 from address import Address
 from hash_table import HashTableWithChaining as HashTable
 from package import Package
+from status import Status
 from truck import Truck
 
 #
@@ -43,6 +49,7 @@ with open('csv/packages.csv', 'r') as package_file:
     package_data = csv.reader(package_file)
     package_data = list(package_data)
 
+# Create a list of Package objects and extend the Address with the address data
 for package in package_data:
     # 1,195 W Oakland Ave,Salt Lake City,UT,84115,10:30 AM,21,
     parcel = Package(int(package[0]), package[6], package[7])
@@ -77,6 +84,9 @@ for i in range(len(distance_data)):
             DISTANCES[j, i] = 0.0
 
 
+#
+# Helper functions
+#
 def get_address_by_street(address_list, street: str) -> Address or None:
     for addr in address_list:
         if addr.street == street:
@@ -104,6 +114,7 @@ def get_distance(i: int, j: int) -> float:
         return DISTANCES[j, i]
 
 
+# truck_assigner assigns packages to a truck based on restrictions
 def truck_assigner(package) -> int | None:
     id: int = int(package.ID)
 
@@ -125,33 +136,6 @@ def truck_assigner(package) -> int | None:
         return 3
 
     return None
-
-
-# def route_formatter(package):
-
-
-#
-# Greedy algorithms/optimization
-#
-
-# Nearest neighbor algorithm
-# O(N^2) time complexity
-# Consume a list of packages and return a route of addresses
-def nearest_neighbor(start, packages_list):
-    packages = packages_list.copy()
-    route = [start]
-    current = start
-    while len(packages) > 0:
-        nearest = None
-        for package in packages:
-            if nearest is None:
-                nearest = package
-            if get_distance(current, package.address.ID) < get_distance(current, nearest.address.ID):
-                nearest = package
-        route.append(nearest.address.ID)
-        current = nearest.address.ID
-        packages.remove(nearest)
-    return route
 
 
 # distribute packages to trucks
@@ -188,35 +172,25 @@ def sort_packages(packages, trucks):
             trucks[2].packages.append(package)
 
 
-# deliver_packages iterates through the truck's route and filters out packages that are to be delivered at each address
-# also calculates the total distance traveled by the truck and the time each package is delivered as the truck travels
-# O(N^2) time complexity
-def deliver_packages(truck) -> list[Package]:
-    current = truck.route[0]  # start at the first address in the route
-    delivered = []
-    for i in range(1, len(truck.route)):
-        next_local = truck.route[i]
+def get_status_at_time(package, time):
+    if package.ID == 9:
+        delay_time = datetime.timedelta(hours=10, minutes=20)
+        if time < delay_time:
+            return Status.AT_HUB
+        elif delay_time < time < package.delivery_time:
+            PACKAGES.search(9).address = ADDRESSES[19]
+            return Status.OUT_FOR_DELIVERY
+        elif time >= package.delivery_time:
+            return Status.DELIVERED
 
-        distance = get_distance(current, next_local)
-        truck.total_distance += distance
-
-        curr_packages = get_packages_by_address(truck.packages, next_local)
-        for package in curr_packages:
-            # convert distance to time in minutes and add to leave time
-            delivery_time = truck.leave_time + datetime.timedelta(minutes=truck.total_distance / 18 * 60)
-
-            package.delivery_time = delivery_time
-            delivered.append(package)
-        # filter out delivered packages
-        truck.packages = [package for package in truck.packages if package not in curr_packages]
-        current = next_local
-
-    return delivered
-
-
-#
-# Main control flow
-#
+    if package.leave_time is None:
+        return Status.AT_HUB
+    elif time < package.leave_time:
+        return Status.AT_HUB
+    elif time < package.delivery_time:
+        return Status.OUT_FOR_DELIVERY
+    elif time >= package.delivery_time:
+        return str(Status.DELIVERED) + f' at {package.delivery_time}'
 
 
 # Helper function to print out truck packages and routes for debugging
@@ -235,6 +209,59 @@ def print_out_packages(trucks):
         print()
         pri.clear()
         std.clear()
+
+
+# Nearest neighbor algorithm
+# O(N^2) time complexity
+# Consume a list of packages and return a route of addresses
+def nearest_neighbor(start, packages_list):
+    packages = packages_list.copy()
+    route = [start]
+    current = start
+    while len(packages) > 0:
+        nearest = None
+        for package in packages:
+            if nearest is None:
+                nearest = package
+            if get_distance(current, package.address.ID) < get_distance(current, nearest.address.ID):
+                nearest = package
+        route.append(nearest.address.ID)
+        current = nearest.address.ID
+        packages.remove(nearest)
+    return route
+
+
+# deliver_packages iterates through the truck's route and filters out packages that are to be delivered at each address
+# also calculates the total distance traveled by the truck and the time each package is delivered as the truck travels
+# O(N^2) time complexity, where N is the number of packages at any given address
+def deliver_packages(truck) -> list[Package]:
+    current = truck.route[0]  # start at the first address in the route
+    delivered = []  # list of packages that have been delivered for reference later
+    for i in range(1, len(truck.route)):
+        next_local = truck.route[i]
+
+        distance = get_distance(current, next_local)
+        truck.total_distance += distance
+
+        # get any packages on the truck at the current address and deliver them together
+        curr_packages = get_packages_by_address(truck.packages, next_local)
+        for package in curr_packages:
+            # convert distance to time in minutes and add to leave time
+            delivery_time = truck.leave_time + datetime.timedelta(minutes=truck.total_distance / 18 * 60)
+
+            package.delivery_time = delivery_time  # set delivery time for package
+            delivered.append(package)
+
+        # filter out delivered packages to avoid double delivery
+        truck.packages = [package for package in truck.packages if package not in curr_packages]
+        current = next_local
+
+    return delivered
+
+
+#
+# Main control flow
+#
 
 
 def run_simulation() -> list[Truck]:
@@ -313,10 +340,9 @@ def user_interface(trucks: list[Truck]):
     menu = """
             Please select an option:
             1. Lookup package at exact time
-            2. Print all packages
+            2. Lookup all packages
             3. Get status of all packages at a specific time
-            4. Print all addresses
-            5. Exit
+            4. Exit
             
             """
 
@@ -325,31 +351,26 @@ def user_interface(trucks: list[Truck]):
 
         match user_input:
             case '1':
-                print('Lookup package at time')
-                package_id = input('Enter package ID: ')
+                package_id = input('\nEnter package ID: ')
                 package = PACKAGES.search(int(package_id))
                 search_time = input('Enter time to search for package: (HH:MM) ')
                 search_time = convert_time(search_time)
-                package.get_status_at_time(search_time)
-                print(f'Package {package_id} status at {search_time}: {package.get_status_at_time(search_time)}')
+                print(package)
                 input('Press Enter to continue...')
             case '2':
-                print(PACKAGES.inspect())
-            case '3':
-                search_time = input('Enter time to view status of all packages: (HH:MM) ')
-                search_time = convert_time(search_time)
-                for truck in trucks:
-                    print(f'Truck {truck.ID} packages:' + str([package.ID for package in truck.delivered]))
-                    for package in truck.delivered:
-                        print(f'Package {package.ID} status at {search_time}: {package.get_status_at_time(search_time)}')
-                    print()
+                package_list = [PACKAGES.search(i) for i in range(1, 41)]
+                for package in package_list:
+                    print(package)
                 input('Press Enter to continue...')
-
+            case '3':
+                search_time = input('\nEnter time to view status of all packages: (HH:MM) ')
+                search_time = convert_time(search_time)
+                package_list = [PACKAGES.search(i) for i in range(1, 41)]
+                for package in package_list:
+                    status = get_status_at_time(package, search_time)
+                    print(package.package_print_out(search_time) + ' -- ' + str(status))
+                input('Press Enter to continue...')
             case '4':
-                print('Print all addresses')
-                for address in ADDRESSES:
-                    print(address)
-            case '5':
                 print('Exiting...')
                 break
             case _:
