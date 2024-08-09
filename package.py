@@ -31,6 +31,9 @@ class Package:
     def package_print_out(self, time):
         prtout = ''
         prtout += f'Package ID: {self.ID} - Weight: {self.weight} lbs - Leave Time: {self.leave_time} - Deadline: {self.handle_deadline()} - '
-        prtout += f'\t{self.get_address()}'
+        if self.ID == 9 and time < datetime.timedelta(hours=10, minutes=20):
+            prtout += f'\tCouncil Hall - 300 State St Salt Lake City, UT 84103'
+        else:
+            prtout += f'\t{self.get_address()}'
 
         return prtout

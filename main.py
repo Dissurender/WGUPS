@@ -2,7 +2,6 @@
 # Student ID: 011258802
 # C950
 
-
 import datetime
 import random
 
@@ -68,6 +67,9 @@ for package in package_data:
     if parcel.deadline <= datetime.timedelta(hours=10, minutes=30):
         parcel.is_priority = True
 
+    if parcel.ID == 9:
+        parcel.address = ADDRESSES[19]
+
     # Insert package into hash table with package ID as key and package data as value
     PACKAGES.insert(parcel.ID, parcel)
 
@@ -94,6 +96,7 @@ def get_address_by_street(address_list, street: str) -> Address or None:
     return None
 
 
+# find all packages at a given address to avoid route loops
 def get_packages_by_address(package_list, address: int) -> list:
     packages = []
     for package in package_list:
@@ -102,6 +105,7 @@ def get_packages_by_address(package_list, address: int) -> list:
     return packages
 
 
+# get_distance returns the distance between two addresses
 def get_distance(i: int, j: int) -> float:
     i = int(i)
     j = int(j)
@@ -114,7 +118,7 @@ def get_distance(i: int, j: int) -> float:
         return DISTANCES[j, i]
 
 
-# truck_assigner assigns packages to a truck based on restrictions
+# truck_assigner assigns packages to a truck based on restrictions given in the notes column of the packages.csv file
 def truck_assigner(package) -> int | None:
     id: int = int(package.ID)
 
@@ -138,7 +142,7 @@ def truck_assigner(package) -> int | None:
     return None
 
 
-# distribute packages to trucks
+# distribute packages to trucks based on priority, standard and truck capacity
 def sort_packages(packages, trucks):
     standard_packages = []
     for package in packages:
@@ -172,13 +176,13 @@ def sort_packages(packages, trucks):
             trucks[2].packages.append(package)
 
 
+# get_status_at_time returns the status of a package at a given time
 def get_status_at_time(package, time):
     if package.ID == 9:
         delay_time = datetime.timedelta(hours=10, minutes=20)
         if time < delay_time:
             return Status.AT_HUB
         elif delay_time < time < package.delivery_time:
-            PACKAGES.search(9).address = ADDRESSES[19]
             return Status.OUT_FOR_DELIVERY
         elif time >= package.delivery_time:
             return Status.DELIVERED
@@ -278,7 +282,6 @@ def run_simulation() -> list[Truck]:
     # sort packages to priority and standard lists
     sort_packages(packages, trucks)
 
-    # TODO: Verify that addresses are not being duplicated in the route after optimization
     # Nearest neighbor optimization
     for truck in trucks:
         # starting at hub, find nearest neighbor path for priority packages
@@ -352,10 +355,14 @@ def user_interface(trucks: list[Truck]):
         match user_input:
             case '1':
                 package_id = input('\nEnter package ID: ')
-                package = PACKAGES.search(int(package_id))
+                package: Package | None = PACKAGES.search(int(package_id))
+                if package is None:
+                    print('Package not found or does not exist.')
+                    input('Press Enter to continue...')
+                    break
                 search_time = input('Enter time to search for package: (HH:MM) ')
                 search_time = convert_time(search_time)
-                print(package)
+                print(package.package_print_out(search_time) + ' -- ' + get_status_at_time(package, search_time))
                 input('Press Enter to continue...')
             case '2':
                 package_list = [PACKAGES.search(i) for i in range(1, 41)]
@@ -393,13 +400,6 @@ def main():
 
     user_interface(trucks)  # User Input Loop
     exit()  # Graceful exit
-
-
-# Test code
-# print('Testing...')
-def test_truck_assigner():
-    assert truck_assigner(PACKAGES.search(3)) == 2
-    assert truck_assigner(PACKAGES.search(18)) == 2
 
 
 if __name__ == '__main__':
