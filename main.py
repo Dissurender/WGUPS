@@ -152,8 +152,10 @@ def sort_packages(packages, trucks):
                 choice = random.randint(1, 2)
             if choice == 1:
                 trucks[0].priority_packages.append(package)
+                package.truck = trucks[0].ID
             else:
                 trucks[1].priority_packages.append(package)
+                package.truck = trucks[1].ID
         else:
             choice = truck_assigner(package)
             if choice is None:
@@ -162,18 +164,24 @@ def sort_packages(packages, trucks):
                 match choice:
                     case 1:
                         trucks[0].packages.append(package)
+                        package.truck = trucks[0].ID
                     case 2:
                         trucks[1].packages.append(package)
+                        package.truck = trucks[1].ID
                     case 3:
                         trucks[2].packages.append(package)
+                        package.truck = trucks[2].ID
     # fill trucks with standard packages
     for package in standard_packages:
         if trucks[0].package_count() < 14:
             trucks[0].packages.append(package)
+            package.truck = trucks[0].ID
         elif trucks[1].package_count() < 14:
             trucks[1].packages.append(package)
+            package.truck = trucks[1].ID
         else:
             trucks[2].packages.append(package)
+            package.truck = trucks[2].ID
 
 
 # get_status_at_time returns the status of a package at a given time
@@ -362,12 +370,12 @@ def user_interface(trucks: list[Truck]):
                     break
                 search_time = input('Enter time to search for package: (HH:MM) ')
                 search_time = convert_time(search_time)
-                print(package.package_print_out(search_time) + ' -- ' + get_status_at_time(package, search_time))
+                print(package.package_print_out(search_time) + ' -- ' + str(get_status_at_time(package, search_time)))
                 input('Press Enter to continue...')
             case '2':
                 package_list = [PACKAGES.search(i) for i in range(1, 41)]
                 for package in package_list:
-                    print(package)
+                    print(package.package_print_out(datetime.timedelta(hours=22, minutes=0)))
                 input('Press Enter to continue...')
             case '3':
                 search_time = input('\nEnter time to view status of all packages: (HH:MM) ')
