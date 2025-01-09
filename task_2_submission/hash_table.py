@@ -36,7 +36,6 @@ class HashTableWithChaining:
         print('Key not found')
         return None
 
-    # O(n) time complexity for deletion
     def delete(self, key):
         bucket = self._hash(key)
         bucket_list = self.table[bucket]
